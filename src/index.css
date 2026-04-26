@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  background-color: #ffffff;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.three-d-shadow {
+  box-shadow: 
+    0 1px 1px rgba(0,0,0,0.11), 
+    0 2px 2px rgba(0,0,0,0.11), 
+    0 4px 4px rgba(0,0,0,0.11), 
+    0 8px 8px rgba(0,0,0,0.11), 
+    0 16px 16px rgba(0,0,0,0.11);
+}
+
+.three-d-button {
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 0 rgb(21, 128, 61);
+}
+
+.three-d-button:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 rgb(21, 128, 61);
+}
+
+.gradient-bg {
+  background: radial-gradient(circle at top left, #f0fdf4 0%, #ffffff 100%);
+}
