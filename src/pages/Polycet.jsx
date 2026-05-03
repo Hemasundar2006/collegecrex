@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Client } from "@gradio/client";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, CheckCircle2, Filter, Sparkles, MapPin, Info } from 'lucide-react';
-import AdBanner from '../components/AdBanner';
 
 const Polycet = () => {
     const [activeTab, setActiveTab] = useState('quick'); // 'quick' or 'dream'
@@ -249,10 +248,6 @@ const Polycet = () => {
                             )}
                         </AnimatePresence>
                     </div>
-                </div>
-
-                <div className="mt-12">
-                    <AdBanner />
                 </div>
             </div>
         </div>

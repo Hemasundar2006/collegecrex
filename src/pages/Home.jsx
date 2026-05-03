@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Sparkles, Trophy, BookOpen, Globe } from 'lucide-react';
-import AdBanner from '../components/AdBanner';
 
 const FeatureCard = ({ icon: Icon, title, description, to, delay }) => (
     <motion.div
@@ -102,8 +101,6 @@ const Home = () => {
                         </motion.div>
                     </motion.div>
                 </div>
-
-                <AdBanner />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-16">
                     <FeatureCard 
