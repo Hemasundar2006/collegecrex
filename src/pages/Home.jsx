@@ -45,17 +45,17 @@ const Home = () => {
                             <Sparkles size={16} />
                             <span>Revolutionizing Career Planning</span>
                         </div>
-                        <h1 className="text-6xl lg:text-7xl font-black text-primary-950 leading-[1.1] mb-6 italic tracking-tighter">
+                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-primary-950 leading-[1.1] mb-6 italic tracking-tighter">
                             Predict Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-green-400">Future College</span> Rank
                         </h1>
                         <p className="text-lg text-primary-700 leading-relaxed max-w-xl mb-10">
                             The most accurate rank predictor for AP POLYCET, EAMCET, and ECET. Built by students, for students. Get insights into your potential college placements today.
                         </p>
-                        <div className="flex flex-wrap gap-4">
-                            <button className="px-8 py-4 bg-primary-600 text-white rounded-2xl font-black text-lg shadow-[0_8px_0_rgb(21,128,61)] hover:shadow-[0_4px_0_rgb(21,128,61)] hover:translate-y-1 active:translate-y-2 active:shadow-none transition-all">
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+                            <button className="w-full sm:w-auto px-8 py-4 bg-primary-600 text-white rounded-2xl font-black text-lg shadow-[0_8px_0_rgb(21,128,61)] hover:shadow-[0_4px_0_rgb(21,128,61)] hover:translate-y-1 active:translate-y-2 active:shadow-none transition-all">
                                 Explored Features
                             </button>
-                            <button className="px-8 py-4 bg-white text-primary-900 border-2 border-primary-100 rounded-2xl font-black text-lg hover:bg-primary-50 transition-all shadow-lg">
+                            <button className="w-full sm:w-auto px-8 py-4 bg-white text-primary-900 border-2 border-primary-100 rounded-2xl font-black text-lg hover:bg-primary-50 transition-all shadow-lg">
                                 Watch Tutorial
                             </button>
                         </div>
@@ -89,14 +89,14 @@ const Home = () => {
                         <motion.div 
                             animate={{ y: [0, -10, 0] }} 
                             transition={{ duration: 3, repeat: Infinity }}
-                            className="absolute -bottom-10 -right-10 p-6 bg-white rounded-2xl shadow-3d-hover border border-primary-50 z-20 flex items-center gap-4"
+                            className="absolute -bottom-6 right-2 sm:-bottom-10 sm:-right-10 p-4 sm:p-6 bg-white rounded-2xl shadow-3d-hover border border-primary-50 z-20 flex items-center gap-4"
                         >
                             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
                                 <Globe size={24} />
                             </div>
                             <div>
-                                <div className="text-xs text-primary-500 font-bold uppercase tracking-wider">Live Users</div>
-                                <div className="text-2xl font-black text-primary-950">1,240+ Today</div>
+                                <div className="text-xs sm:text-sm text-primary-500 font-bold uppercase tracking-wider">Live Users</div>
+                                <div className="text-xl sm:text-2xl font-black text-primary-950">1,240+ Today</div>
                             </div>
                         </motion.div>
                     </motion.div>

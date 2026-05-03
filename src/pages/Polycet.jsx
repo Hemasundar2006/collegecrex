@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Client } from "@gradio/client";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, CheckCircle2, Filter, Sparkles, MapPin, Info } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, Filter, Sparkles, MapPin, Info, Download, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const Polycet = () => {
     const [activeTab, setActiveTab] = useState('quick'); // 'quick' or 'dream'
@@ -18,11 +19,138 @@ const Polycet = () => {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+    const [mapModal, setMapModal] = useState({ isOpen: false, college: null, loading: false, data: null, error: null });
+    const [exportCount, setExportCount] = useState(10);
+
+    useEffect(() => {
+        window.openMapModal = (collegeName, district = '') => {
+            setMapModal({ isOpen: true, college: collegeName, loading: true, data: null, error: null });
+            
+            const apiKey = "ea7dcf935a8e4f86bf2740ecc81a94fd";
+            const searchQuery = `${collegeName} ${district} Andhra Pradesh`.trim();
+            fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(searchQuery)}&apiKey=${apiKey}`)
+                .then(res => res.json())
+                .then(result => {
+                    if (result.features && result.features.length > 0) {
+                        const { lat, lon, formatted } = result.features[0].properties;
+                        setMapModal(prev => ({ ...prev, loading: false, data: { lat, lon, formatted } }));
+                    } else {
+                        setMapModal(prev => ({ ...prev, loading: false, error: "Location not found on map" }));
+                    }
+                })
+                .catch(err => {
+                    setMapModal(prev => ({ ...prev, loading: false, error: "Failed to load map data" }));
+                });
+        };
+        return () => { delete window.openMapModal; };
+    }, []);
+
+    const exportToExcel = () => {
+        const table = document.querySelector('.results-html-content table');
+        if (!table) {
+            alert('No data available to export.');
+            return;
+        }
+
+        const rows = table.querySelectorAll('tr');
+        const headers = [];
+        if (rows.length > 0) {
+            const headerCells = rows[0].querySelectorAll('th, td');
+            headerCells.forEach(cell => {
+                if (!cell.classList.contains('map-header') && !cell.classList.contains('map-cell')) {
+                    headers.push(cell.textContent ? cell.textContent.trim() : '');
+                }
+            });
+        }
+
+        const body = [];
+        const rowCount = Math.min(rows.length, exportCount + 1);
+        for (let i = 1; i < rowCount; i++) {
+            const rowData = [];
+            const cols = rows[i].querySelectorAll('td, th');
+            cols.forEach(cell => {
+                if (!cell.classList.contains('map-header') && !cell.classList.contains('map-cell')) {
+                    rowData.push(cell.textContent ? cell.textContent.trim() : '');
+                }
+            });
+            body.push(rowData);
+        }
+
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...body]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Colleges");
+        XLSX.writeFile(workbook, `Top_${exportCount}_Colleges.xlsx`);
+    };
 
     const categories = ['OC', 'SC', 'ST', 'BCA', 'BCB', 'BCC', 'BCD', 'BCE', 'EWS'];
     const genders = ['Male', 'Female'];
     const districts = ['All', 'ATP', 'CTR', 'EG', 'GTR', 'KDP', 'KNL', 'KRI', 'NLR', 'PKS', 'SKL', 'VSP', 'VZM', 'WG'];
     const courses = ['AEI', 'AFT', 'AI', 'AIM', 'AMG', 'ARC', 'AUT', 'BME', 'CAI', 'CCB', 'CCN', 'CCP', 'CER', 'CHE', 'CIV', 'CME', 'CMI', 'COT', 'CPC', 'CPP', 'ECE', 'EEE', 'EII', 'EVT', 'GT', 'IOT', 'MEC', 'MET', 'MIN', 'MRA', 'PET', 'TXT', 'VAS', 'VCS', 'VER', 'VMC', 'WD'];
+
+    const processResultHtml = (htmlString) => {
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const table = doc.querySelector('table');
+            if (!table) return htmlString;
+
+            const headerRow = table.querySelector('thead tr') || table.querySelector('tr');
+            const allRows = Array.from(table.querySelectorAll('tr'));
+            const dataRows = allRows.filter(r => r !== headerRow);
+
+            dataRows.sort((a, b) => {
+                const textA = a.textContent.toLowerCase();
+                const textB = b.textContent.toLowerCase();
+                const aIsGovt = textA.includes('govt') || textA.includes('government') || textA.includes('university') || textA.includes(' univ');
+                const bIsGovt = textB.includes('govt') || textB.includes('government') || textB.includes('university') || textB.includes(' univ');
+                if (aIsGovt && !bIsGovt) return -1;
+                if (!aIsGovt && bIsGovt) return 1;
+                return 0;
+            });
+            
+            const tbody = table.querySelector('tbody') || table;
+            dataRows.forEach(row => tbody.appendChild(row));
+            
+            if (headerRow && !headerRow.querySelector('.map-header')) {
+                const th = document.createElement('th');
+                th.className = 'map-header';
+                th.innerText = 'Location';
+                headerRow.appendChild(th);
+            }
+
+            let nameColIdx = 1;
+            let distColIdx = -1;
+            if (headerRow) {
+                const headers = Array.from(headerRow.querySelectorAll('th, td')).map(h => h.innerText.toLowerCase());
+                const foundIdx = headers.findIndex(h => h.includes('college') || h.includes('institute') || h.includes('name'));
+                if (foundIdx !== -1) nameColIdx = foundIdx;
+                
+                const distIdx = headers.findIndex(h => h.includes('dist') || h.includes('place') || h.includes('location'));
+                if (distIdx !== -1) distColIdx = distIdx;
+            }
+
+            dataRows.forEach(row => {
+                if (row.querySelector('.map-cell')) return;
+                const tds = row.querySelectorAll('td, th');
+                const collegeName = tds[nameColIdx] ? tds[nameColIdx].innerText.trim() : '';
+                const districtName = distColIdx !== -1 && tds[distColIdx] ? tds[distColIdx].innerText.trim() : '';
+                
+                const td = document.createElement('td');
+                td.className = 'map-cell';
+                if (collegeName) {
+                    const safeName = collegeName.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    const safeDist = districtName.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    td.innerHTML = `<button type="button" class="px-3 py-1.5 bg-primary-100 text-primary-700 rounded-lg text-xs font-bold hover:bg-primary-200 transition-colors flex items-center gap-1 whitespace-nowrap" onclick="window.openMapModal('${safeName}', '${safeDist}')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Map</button>`;
+                }
+                row.appendChild(td);
+            });
+            
+            return doc.body.innerHTML;
+        } catch (e) {
+            console.error("Sorting table failed", e);
+            return htmlString;
+        }
+    };
 
     const handlePredict = async (e) => {
         e.preventDefault();
@@ -39,7 +167,7 @@ const Polycet = () => {
                     gender: gender,
                     course: course,
                 });
-                setResult(response.data[0]);
+                setResult(processResultHtml(response.data[0]));
             } else {
                 const client = await Client.connect("hemasundarprojs/polycet_filter");
                 const response = await client.predict("/predictor", {
@@ -49,7 +177,7 @@ const Polycet = () => {
                     course: course,
                     district: dDistrict,
                 });
-                setResult(response.data[0]);
+                setResult(processResultHtml(response.data[0]));
             }
         } catch (err) {
             console.error(err);
@@ -74,21 +202,21 @@ const Polycet = () => {
                 </motion.div>
 
                 {/* Tab Switcher */}
-                <div className="flex justify-center mb-12">
-                    <div className="bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-primary-100 shadow-lg flex gap-2">
+                <div className="flex justify-center mb-12 px-2">
+                    <div className="bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-primary-100 shadow-lg flex gap-2 w-full sm:w-auto overflow-x-auto hide-scrollbar">
                         <button
                             onClick={() => { setActiveTab('quick'); setResult(null); }}
-                            className={`px-8 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'quick' ? 'bg-primary-600 text-white shadow-3d' : 'text-primary-600 hover:bg-primary-50'}`}
+                            className={`px-4 sm:px-8 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap text-sm sm:text-base ${activeTab === 'quick' ? 'bg-primary-600 text-white shadow-3d' : 'text-primary-600 hover:bg-primary-50'}`}
                         >
-                            <Search size={18} />
+                            <Search size={18} className="shrink-0" />
                             Quick Predict
                         </button>
                         <button
                             onClick={() => { setActiveTab('dream'); setResult(null); }}
-                            className={`px-8 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'dream' ? 'bg-primary-600 text-white shadow-3d' : 'text-primary-600 hover:bg-primary-50'}`}
+                            className={`px-4 sm:px-8 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap text-sm sm:text-base ${activeTab === 'dream' ? 'bg-primary-600 text-white shadow-3d' : 'text-primary-600 hover:bg-primary-50'}`}
                         >
-                            <Sparkles size={18} />
-                            Dream College Filter
+                            <Sparkles size={18} className="shrink-0" />
+                            Dream Filter
                         </button>
                     </div>
                 </div>
@@ -99,7 +227,7 @@ const Polycet = () => {
                         layout
                         className="lg:col-span-7"
                     >
-                        <form onSubmit={handlePredict} className="bg-white p-8 rounded-[2.5rem] shadow-3d border border-primary-50 space-y-6 relative overflow-hidden">
+                        <form onSubmit={handlePredict} className="bg-white p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-3d border border-primary-50 space-y-6 relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 to-green-300"></div>
                             
                             <div>
@@ -201,17 +329,39 @@ const Polycet = () => {
                                     key="result-card"
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="bg-white p-8 rounded-[2.5rem] shadow-3d-hover border border-primary-100 relative overflow-hidden"
+                                    className="bg-white p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-3d-hover border border-primary-100 relative overflow-hidden"
                                 >
                                     <div className="absolute top-0 right-0 p-3 bg-green-50 rounded-bl-2xl text-green-600">
                                         <CheckCircle2 size={24} />
                                     </div>
-                                    <h3 className="text-primary-900 font-black uppercase text-xs tracking-widest mb-6 flex items-center gap-2">
-                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                        Available Options
-                                    </h3>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                        <h3 className="text-primary-900 font-black uppercase text-xs tracking-widest flex items-center gap-2">
+                                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                            Available Options
+                                        </h3>
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                                            <select 
+                                                value={exportCount} 
+                                                onChange={(e) => setExportCount(Number(e.target.value))}
+                                                className="w-full sm:w-auto px-3 py-2 bg-primary-50 text-primary-700 border border-primary-100 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                                            >
+                                                <option value={10}>Top 10</option>
+                                                <option value={20}>Top 20</option>
+                                                <option value={50}>Top 50</option>
+                                            </select>
+                                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                <button 
+                                                    onClick={exportToExcel}
+                                                    className="px-4 py-2 bg-primary-50 text-primary-700 hover:bg-primary-100 hover:text-primary-900 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none border border-primary-100"
+                                                >
+                                                    <Download size={14} />
+                                                    Excel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div 
-                                        className="results-html-content text-primary-950 prose prose-sm prose-green max-w-none"
+                                        className="results-html-content text-primary-950 prose prose-sm prose-green max-w-none overflow-x-auto"
                                         dangerouslySetInnerHTML={{ __html: result }}
                                     />
                                 </motion.div>
@@ -219,7 +369,7 @@ const Polycet = () => {
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    className="bg-primary-950 text-white p-10 rounded-[2.5rem] shadow-3d h-full flex flex-col justify-center border border-white/10"
+                                    className="bg-primary-950 text-white p-8 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-3d h-full flex flex-col justify-center border border-white/10"
                                 >
                                     <div className="mb-6 opacity-40 italic"><Info size={40} /></div>
                                     <h3 className="text-2xl font-black mb-4 tracking-tight">Expert Insight</h3>
@@ -250,6 +400,61 @@ const Polycet = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Map Modal */}
+            <AnimatePresence>
+                {mapModal.isOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-950/40 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-[2rem] p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-primary-100 relative"
+                        >
+                            <button 
+                                onClick={() => setMapModal({ isOpen: false, college: null, loading: false, data: null, error: null })}
+                                className="absolute top-6 right-6 text-primary-400 hover:text-primary-900 bg-primary-50 hover:bg-primary-100 p-2 rounded-full transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                            <h3 className="text-xl font-black text-primary-950 mb-2 pr-10 leading-tight">
+                                {mapModal.college}
+                            </h3>
+                            
+                            <div className="mt-6 aspect-video bg-primary-50 rounded-xl overflow-hidden relative border border-primary-100 flex items-center justify-center">
+                                {mapModal.loading ? (
+                                    <div className="flex flex-col items-center text-primary-500">
+                                        <Loader2 className="animate-spin mb-2 w-8 h-8" />
+                                        <span className="text-sm font-bold animate-pulse">Locating on Map...</span>
+                                    </div>
+                                ) : mapModal.error ? (
+                                    <div className="text-red-500 font-bold text-sm bg-red-50 px-4 py-2 rounded-lg">
+                                        {mapModal.error}
+                                    </div>
+                                ) : mapModal.data ? (
+                                    <img 
+                                        src={`https://maps.geoapify.com/v1/staticmap?style=osm-carto&width=600&height=400&center=lonlat:${mapModal.data.lon},${mapModal.data.lat}&zoom=14&marker=lonlat:${mapModal.data.lon},${mapModal.data.lat};type:material;color:%2315803d;icontype:awesome&apiKey=ea7dcf935a8e4f86bf2740ecc81a94fd`}
+                                        alt="Map Location"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : null}
+                            </div>
+                            
+                            {mapModal.data && (
+                                <div className="mt-4 flex items-start gap-2 text-sm text-primary-700 bg-green-50 p-3 rounded-xl border border-green-100">
+                                    <MapPin size={16} className="text-green-600 shrink-0 mt-0.5" />
+                                    <p className="font-medium leading-relaxed">{mapModal.data.formatted}</p>
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

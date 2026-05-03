@@ -42,3 +42,11 @@ body {
 .gradient-bg {
   background: radial-gradient(circle at top left, #f0fdf4 0%, #ffffff 100%);
 }
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
